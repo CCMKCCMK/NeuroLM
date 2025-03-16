@@ -77,7 +77,8 @@ def load_up_objects(fileList, Features, Labels, OutDir):
             save_pickle(
                 sample,
                 os.path.join(
-                    OutDir, fname.split("/")[-1].split(".")[0] + "-" + str(idx) + ".pkl"
+                    # OutDir, fname.split("/")[-1].split(".")[0] + "-" + str(idx) + ".pkl"
+                    OutDir, fname.split("\\")[-1].split(".")[0] + "-" + str(idx) + ".pkl"
                 ),
             )
 
@@ -89,8 +90,8 @@ def save_pickle(object, filename):
         pickle.dump(object, f)
 
 
-root = "/home/v-weibjiang/EEGworkload/physionet.org/files/eegmat/1.0.0"
-out_dir = '../EEGWorkload'
+root = r"D:\datasets\physionet.org\files\eegmat\1.0.0"
+out_dir = '../eegmat'
 train_out_dir = os.path.join(out_dir, "train")
 eval_out_dir = os.path.join(out_dir, "eval")
 test_out_dir = os.path.join(out_dir, "test")

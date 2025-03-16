@@ -24,12 +24,18 @@ standard_1020 = [
     'CCP1', 'CCP2', 'CCP3', 'CCP4', 'CCP5', 'CCP6', 'CCP7', 'CCP8', \
     'T1', 'T2', 'FTT9h', 'TTP7h', 'TPP9h', 'FTT10h', 'TPP8h', 'TPP10h', \
     "FP1-F7", "F7-T7", "T7-P7", "P7-O1", "FP2-F8", "F8-T8", "T8-P8", "P8-O2", "FP1-F3", "F3-C3", "C3-P3", "P3-O1", "FP2-F4", "F4-C4", "C4-P4", "P4-O2", \
-    'pad', 'I1', 'I2'
+    'pad', 'I1', 'I2', \
+    'EOG1', 'EOG2', 'EOG3', 'EOG4', \
+    'EOGU', 'EOGD', 'EOGR', 'EOGL', \
+    'EOGRU', 'EOGRD','EOGRH', 'EOGLH', 'EOGUR', 'EOGDR', 'EOGUL', 'EOGDL', 'EOGDiagR', 'EOGDiagLU',
+    'EEG Fpz-Cz', 'EEG Pz-Oz', 'EOG horizontal',
+    'E1', 'E2',
+    'EOG horizontal', 'EOG vertical'
 ]
 
 
 class PickleLoader(Dataset):
-    def __init__(self, files, block_size=1024, sampling_rate=200, GPT_training=False):
+    def __init__(self, files, block_size=1024, sampling_rate=100, GPT_training=False):
         self.files = files
         self.default_rate = 200
         self.sampling_rate = sampling_rate
