@@ -69,6 +69,8 @@ class EEGDataset(Dataset):
         
         # Convert to torch tensor
         X = torch.tensor(X, dtype=torch.float32)
+
+        print(X.shape)
         
         # Handle different label formats
         y = sample['y']
