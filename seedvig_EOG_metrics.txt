@@ -1,0 +1,6 @@
+Dataset: seedvig
+Channel types: ['EOG']
+Test Accuracy: 59.64%
+Test Precision: 0.6032
+Test Recall: 0.6086
+Test F1 Score: 0.5985

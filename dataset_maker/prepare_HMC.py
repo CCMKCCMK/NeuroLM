@@ -9,14 +9,14 @@ import os
 import pickle
 import pandas as pd
 
-chOrder_standard = ['EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1', 'EEG C3-M2']
-drop_channels = ['EOG E1-M2', 'EOG E2-M2', 'ECG', 'EMG chin']
+chOrder_standard = ['EOG E1-M2', 'EOG E2-M2']
+drop_channels = ['ECG', 'EMG chin', 'EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1', 'EEG C3-M2']
 
 symbols_hmc = {' Sleep stage W': 0, ' Sleep stage N1': 1, ' Sleep stage N2': 2, ' Sleep stage N3': 3,' Sleep stage R': 4}
 
 def BuildEvents(signals, times, EventData):
     [numEvents, z] = EventData.shape 
-    fs = 100.0
+    fs = 200.0
     [numChan, numPoints] = signals.shape
 
     features = np.zeros([numEvents - 2, numChan, int(fs) * 30])
@@ -46,23 +46,23 @@ def readEDF(fileName):
     if Rawdata.ch_names != chOrder_standard:
         raise ValueError
 
-    # Rawdata.filter(l_freq=0.3, h_freq=30.0)
+    Rawdata.filter(l_freq=0.3, h_freq=30.0)
     # Rawdata.notch_filter(50.0)
-    Rawdata.resample(100, n_jobs=16)
+    Rawdata.resample(200, n_jobs=16)
 
     _, times = Rawdata[:]
     signals = Rawdata.get_data(units='uV')
     labelFile = fileName[0:-4] + "_sleepscoring.txt"
     labelData = pd.read_csv(labelFile)
     Rawdata.close()
-    return [signals, times, labelData, Rawdata]
+    return [signals, times, labelData]
 
 
 def load_up_objects(fileList, Features, Labels, OutDir):
     for fname in fileList:
         print("\t%s" % fname)
         try:
-            [signals, times, labelData, Rawdata] = readEDF(fname)
+            [signals, times, labelData] = readEDF(fname)
         except (ValueError, KeyError):
             print("something funky happened in " + fname)
             continue
@@ -117,7 +117,7 @@ train_files = edf_files[:100]
 eval_files = edf_files[100:125]
 test_files = edf_files[125:]
 
-fs = 100
+fs = 200
 TrainFeatures = np.empty(
     (0, 4, fs * 30)
 )  # 0 for lack of intialization, 22 for channels, fs for num of points
@@ -126,7 +126,7 @@ load_up_objects(
     train_files, TrainFeatures, TrainLabels, train_out_dir
 )
 
-fs = 100
+fs = 200
 EvalFeatures = np.empty(
     (0, 4, fs * 30)
 )  # 0 for lack of intialization, 22 for channels, fs for num of points
@@ -135,7 +135,7 @@ load_up_objects(
     eval_files, EvalFeatures, EvalLabels, eval_out_dir
 )
 
-fs = 100
+fs = 200
 TestFeatures = np.empty(
     (0, 4, fs * 30)
 )  # 0 for lack of intialization, 22 for channels, fs for num of points

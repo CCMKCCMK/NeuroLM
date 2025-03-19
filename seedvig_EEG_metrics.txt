@@ -1,0 +1,6 @@
+Dataset: seedvig
+Channel types: ['EEG']
+Test Accuracy: 38.96%
+Test Precision: 0.4550
+Test Recall: 0.4825
+Test F1 Score: 0.3751

@@ -28,8 +28,10 @@ standard_1020 = [
     'EOG1', 'EOG2', 'EOG3', 'EOG4', \
     'EOGU', 'EOGD', 'EOGR', 'EOGL', \
     'EOGRU', 'EOGRD','EOGRH', 'EOGLH', 'EOGUR', 'EOGDR', 'EOGUL', 'EOGDL', 'EOGDiagR', 'EOGDiagLU',
-    'EEG Fpz-Cz', 'EEG Pz-Oz', 'EOG horizontal',
-    'E1', 'E2',
+
+    'EEG Fpz-Cz', 'EEG Pz-Oz',
+    'EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1', 'EEG C3-M2',
+    'EOG E1-M2', 'EOG E2-M2',
     'EOG horizontal', 'EOG vertical'
 ]
 

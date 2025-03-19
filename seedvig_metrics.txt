@@ -1,0 +1,6 @@
+Dataset: seedvig
+All channels used
+Test Accuracy: 43.86%
+Test Precision: 0.4755
+Test Recall: 0.3885
+Test F1 Score: 0.4068

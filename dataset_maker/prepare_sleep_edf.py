@@ -143,11 +143,6 @@ def readEDF(fileName):
         # Pick only the channels we want
         Rawdata.pick_channels(available_channels)
 
-        # plot the raw data
-        # import matplotlib.pyplot as plt
-        # plt.plot(Rawdata.get_data().T)
-        # plt.show()        
-        
         # Find corresponding hypnogram file
         try:
             hypno_file = find_hypno_file(fileName)
@@ -196,10 +191,9 @@ def readEDF(fileName):
             
             # Extract only the relevant portion of the data
             _, times = Rawdata[:, start_sample:end_sample]
-            signals = Rawdata.get_data(units='uV')[:, start_sample:end_sample]
             
             # Adjust onsets to match the new time reference
-            onsets = onsets - start_time 
+            onsets = onsets - start_time
             # Remove any annotations that fall outside our trimmed data
             valid_indices = np.where(onsets < (end_time - start_time))[0]
             onsets[0] = 0
@@ -207,17 +201,13 @@ def readEDF(fileName):
             labels = labels[valid_indices]
             times = times * fs
             times = times - times[0]
-            
 
-            # plt.plot(times, signals[0])
-            # plt.show()
-        
         # Apply preprocessing in the correct order (filter, notch, resample)
-        print(f"Applying filters")
         Rawdata.filter(l_freq=0.3, h_freq=30.0)
         # Rawdata.notch_filter(50.0)
         # print(f"Resampling to 100 Hz")
-        # Rawdata.resample(100, n_jobs=16)
+        Rawdata.resample(300, n_jobs=16)
+        signals = Rawdata.get_data(units='uV')[:, start_sample:end_sample]
 
         # Store the original channel names before closing
         orig_ch_names = Rawdata.ch_names

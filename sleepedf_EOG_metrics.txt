@@ -1,0 +1,6 @@
+Dataset: sleepedf
+Channel types: ['EOG']
+Test Accuracy: 66.98%
+Test Precision: 0.5622
+Test Recall: 0.5794
+Test F1 Score: 0.5588

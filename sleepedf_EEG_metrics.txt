@@ -1,0 +1,6 @@
+Dataset: sleepedf
+Channel types: ['EEG']
+Test Accuracy: 55.90%
+Test Precision: 0.3118
+Test Recall: 0.2006
+Test F1 Score: 0.1446
