@@ -189,11 +189,11 @@ def readEDF(fileName):
             start_sample = int(start_time/100*fs)
             end_sample = int(end_time/100*fs)
             
-            Rawdata.resample(100, n_jobs=16)
+            time_Rawdata = Rawdata.copy().resample(100, n_jobs=16)
             
             # Extract only the relevant portion of the data
-            _, times = Rawdata[:, start_sample:end_sample]
-            signals = Rawdata.get_data(units='uV')[:, start_sample:end_sample]
+            _, times = time_Rawdata[:, start_sample:end_sample]
+            signals = np.zeros((len(Rawdata.ch_names), len(times)))
             
             # Adjust onsets to match the new time reference            onsets = onsets - start_time
             # Remove any annotations that fall outside our trimmed data
@@ -217,7 +217,10 @@ def readEDF(fileName):
 
         # Process EOG channels (0.3-30 Hz)
         # Process EEG channels (0.1-75 Hz with 50Hz notch) NO NEED HERE (SAMPLED AT 100Hz)
-        # eog_raw.filter(l_freq=0.3, h_freq=30.0, n_jobs=16)
+        eog_raw.filter(l_freq=0.3, h_freq=30.0, n_jobs=16)
+
+        eog_raw.resample(100, n_jobs=16)
+        eeg_raw.resample(100, n_jobs=16)
 
         # Get processed data back into a combined dataset
         for i, ch in enumerate(Rawdata.ch_names):

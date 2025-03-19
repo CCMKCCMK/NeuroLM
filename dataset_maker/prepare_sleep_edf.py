@@ -206,7 +206,7 @@ def readEDF(fileName):
         Rawdata.filter(l_freq=0.3, h_freq=30.0)
         # Rawdata.notch_filter(50.0)
         # print(f"Resampling to 100 Hz")
-        Rawdata.resample(300, n_jobs=16)
+        Rawdata.resample(100, n_jobs=16)
         signals = Rawdata.get_data(units='uV')[:, start_sample:end_sample]
 
         # Store the original channel names before closing

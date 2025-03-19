@@ -9,8 +9,8 @@ import os
 import pickle
 import pandas as pd
 
-chOrder_standard = ['EOG E1-M2', 'EOG E2-M2', 'EEG F4-M1']
-drop_channels = ['ECG', 'EMG chin', 'EEG C4-M1', 'EEG O2-M1', 'EEG C3-M2']
+chOrder_standard = ['EOG E1-M2', 'EOG E2-M2', 'EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1', 'EEG C3-M2']
+drop_channels = ['ECG', 'EMG chin']
 
 symbols_hmc = {' Sleep stage W': 0, ' Sleep stage N1': 1, ' Sleep stage N2': 2, ' Sleep stage N3': 3,' Sleep stage R': 4}
 
@@ -46,9 +46,9 @@ def readEDF(fileName):
     if Rawdata.ch_names != chOrder_standard:
         raise ValueError
 
-    Rawdata.resample(200, n_jobs=16)
-
-    _, times = Rawdata[:]
+    time_Rawdata = Rawdata.copy().resample(200, n_jobs=16)
+    _, times = time_Rawdata[:]
+    time_Rawdata.close()
 
     # Separate EOG and EEG channels for different filtering
     eog_channels = [ch for ch in Rawdata.ch_names if 'EOG' in ch]
@@ -60,13 +60,15 @@ def readEDF(fileName):
     # Process EOG channels (0.3-30 Hz)
     eog_raw = Rawdata.copy().pick_channels(eog_channels)
     eog_raw.filter(l_freq=0.3, h_freq=30.0, n_jobs=16)
+    eog_raw.resample(200, n_jobs=16)
 
     # Process EEG channels (0.1-75 Hz with 50Hz notch)
     eeg_raw = Rawdata.copy().pick_channels(eeg_channels)
     eeg_raw.filter(l_freq=0.1, h_freq=75.0, n_jobs=16)
     eeg_raw.notch_filter(50.0, n_jobs=16)
+    eeg_raw.resample(200, n_jobs=16)
     
-    signals = Rawdata.get_data(units='uV')
+    signals = np.zeros((len(Rawdata.ch_names), len(times)))
     # Get filtered data
     for i, ch in enumerate(Rawdata.ch_names):
         if ch in eeg_channels:
