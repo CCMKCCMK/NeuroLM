@@ -13,6 +13,8 @@ standard_1020 = [
     'EEG Fpz-Cz', 'EEG Pz-Oz',
     'EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1', 'EEG C3-M2',
     'EOG E1-M2', 'EOG E2-M2',
+    'EOG E1', 'EOG E2', 
+    'EEG F3', 'EEG C3', 'EEG O1', 'EEG F4', 'EEG C4', 'EEG O2',
     'EOG horizontal', 'EOG vertical', 'pad'
 ]
 
@@ -32,6 +34,7 @@ class UnifiedEXGLoader(Dataset):
     - HMC (sleep stages)
     - SleepEDF (sleep stages) 
     - SEED-VIG (vigilance states)
+    - ISRUC-SLEEP (sleep stages)
     """
     def __init__(self, dataset_config, tokenizer, train_config, partition="train", sampling_rate=200, is_instruct=False, 
                  is_val=False, signal_types='EOG'):
@@ -45,7 +48,7 @@ class UnifiedEXGLoader(Dataset):
             partition: Data partition ('train', 'eval', or 'test')
             sampling_rate: Target sampling rate (default: 200Hz)
             is_instruct: Whether to use instruction format for evaluation
-            signal_types: List of signal types to include ('EEG' or 'EOG')
+            signal_types: List of signal types to include ('EEG' or 'EOG' or 'EEG,EOG')
         """
         # Set dataset paths based on partition
         if partition == "train":
@@ -59,7 +62,7 @@ class UnifiedEXGLoader(Dataset):
             self.is_instruct = True
         
         # Set signal types to use (default: use all available signals)
-        self.signal_types = signal_types
+        self.signal_types = signal_types.split(',')
         print(f"Using signal types: {self.signal_types}")
         
         # Store dataset name for format-specific processing
@@ -75,7 +78,7 @@ class UnifiedEXGLoader(Dataset):
         self.text_max_len = train_config.text_length
         
         # Set prompts and labels based on dataset type
-        if self.dataset_name in ["HMC", "SleepEDF"]:
+        if self.dataset_name in ["HMC", "SleepEDF", "ISRUC-SLEEP"]:
             # Sleep stage classification
             self.text = {
                 0: '(A)',  # Wake
@@ -84,7 +87,8 @@ class UnifiedEXGLoader(Dataset):
                 3: '(D)',  # NREM-3
                 4: '(E)',  # REM
             }
-            self.prompt = f'Question: Which sleep type does this {signal_types} segment belong to? Options: (A) Wake. (B) NREM-1. (C) NREM-2. (D) NREM-3. (E) REM. Answer:'
+            signal_type_str = ','.join(self.signal_types)
+            self.prompt = f'Question: Which sleep type does this {signal_type_str} segment belong to? Options: (A) Wake. (B) NREM-1. (C) NREM-2. (D) NREM-3. (E) REM. Answer:'
         
         elif self.dataset_name == "SEED-VIG":
             # Vigilance state classification
@@ -93,14 +97,26 @@ class UnifiedEXGLoader(Dataset):
                 1: '(B)',  # Tired
                 2: '(C)',  # Drowsy
             }
-            self.prompt = f'Question: What is the vigilance state in this {signal_types} segment? Options: (A) Awake. (B) Tired. (C) Drowsy. Answer:'
+            signal_type_str = ','.join(self.signal_types)
+            self.prompt = f'Question: What is the vigilance state in this {signal_type_str} segment? Options: (A) Awake. (B) Tired. (C) Drowsy. Answer:'
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, index):
         IGNORE_INDEX = -100
-        sample = pickle.load(open(self.files[index], "rb"))
+        try:
+            with open(self.files[index], "rb") as f:
+                sample = pickle.load(f)
+        except Exception as e:
+            print(f"Error loading file {self.files[index]}: {e}")
+            # Try next file if available
+            if index < len(self.files) - 1:
+                return self.__getitem__(index + 1)
+            else:
+                print("No more files available")
+                # Return a placeholder empty sample
+                return self.__getitem__(0)  # Recursively call with first index as fallback
         
         # These datasets store data in "X" key
         signal_data = sample["X"]
@@ -112,10 +128,17 @@ class UnifiedEXGLoader(Dataset):
         eeg_indices = [i for i, ch in enumerate(ch_names) if 'EEG' in ch]
         eog_indices = [i for i, ch in enumerate(ch_names) if 'EOG' in ch]
         
+        # Determine which channels to keep based on requested signal types
+        keep_indices = []
         if "EEG" in self.signal_types:
-            keep_indices = eeg_indices
-        elif "EOG" in self.signal_types:
-            keep_indices = eog_indices
+            keep_indices.extend(eeg_indices)
+        if "EOG" in self.signal_types:
+            keep_indices.extend(eog_indices)
+        
+        # If no matching channels found, use all channels
+        if not keep_indices:
+            print(f"Warning: No channels match requested types {self.signal_types} in file {self.files[index]}. Using all channels.")
+            keep_indices = list(range(signal_data.shape[0]))
         
         signal_data = signal_data[keep_indices]
         ch_names = [ch_names[i] for i in keep_indices]
@@ -175,8 +198,11 @@ class UnifiedEXGLoader(Dataset):
             input_chans.extend(['pad'] * (self.signal_max_len - data.size(0)))
             input_time.extend([0] * (self.signal_max_len - data.size(0)))
         else:
-            signal = data
-            signal_mask = torch.ones(data.size(0), dtype=torch.bool)
+            # Truncate if signal is too long
+            signal = data[:self.signal_max_len]
+            signal_mask = torch.ones(self.signal_max_len, dtype=torch.bool)
+            input_chans = input_chans[:self.signal_max_len]
+            input_time = input_time[:self.signal_max_len]
 
         signal_labels_mask = torch.zeros(signal.size(0), dtype=torch.bool)
         signal_labels = torch.zeros(signal.size(0), dtype=torch.int64)
@@ -210,12 +236,13 @@ class UnifiedEXGLoader(Dataset):
                     "target_text": label,
                     }
 
-# Keep the old classes for backward compatibility
+# Dataset-specific loaders (for backward compatibility)
 class HMCEXGLoader(UnifiedEXGLoader):
     def __init__(self, dataset_config, tokenizer, train_config, partition="train", 
                  sampling_rate=200, is_instruct=False, is_val=False, signal_types='EOG'):
         super().__init__(dataset_config, tokenizer, train_config, partition,
                          sampling_rate, is_instruct, is_val, signal_types)
+
 class SLEEPEXGLoader(UnifiedEXGLoader):
     def __init__(self, dataset_config, tokenizer, train_config, partition="train", 
                  sampling_rate=200, is_instruct=False, is_val=False, signal_types='EOG'):
@@ -227,7 +254,48 @@ class SEEDVIGEXGLoader(UnifiedEXGLoader):
                  sampling_rate=200, is_instruct=False, is_val=False, signal_types='EOG'):
         super().__init__(dataset_config, tokenizer, train_config, partition,
                          sampling_rate, is_instruct, is_val, signal_types)
-        
+
+class ISRUCEXGLoader(UnifiedEXGLoader):
+    def __init__(self, dataset_config, tokenizer, train_config, partition="train", 
+                 sampling_rate=200, is_instruct=False, is_val=False, signal_types='EOG'):
+        # Set the dataset name explicitly to ensure correct prompts
+        dataset_config.dataset = "ISRUC-SLEEP"
+        super().__init__(dataset_config, tokenizer, train_config, partition,
+                         sampling_rate, is_instruct, is_val, signal_types)
+
+# Factory function to create the appropriate loader based on dataset name
+def create_exg_loader(dataset_name, dataset_config, tokenizer, train_config, partition="train", 
+                      sampling_rate=200, is_instruct=False, is_val=False, signal_types='EOG'):
+    """
+    Factory function to create the appropriate dataset loader based on dataset name
+    
+    Args:
+        dataset_name: Name of the dataset ('HMC', 'SleepEDF', 'SEED-VIG', 'ISRUC-SLEEP')
+        dataset_config: Configuration for the dataset
+        tokenizer: Tokenizer for text encoding
+        train_config: Training configuration
+        partition: Data partition ('train', 'eval', or 'test')
+        sampling_rate: Target sampling rate (default: 200Hz)
+        is_instruct: Whether to use instruction format for evaluation
+        signal_types: List of signal types to include ('EEG' or 'EOG' or 'EEG,EOG')
+    
+    Returns:
+        An instance of the appropriate dataset loader
+    """
+    dataset_map = {
+        "HMC": HMCEXGLoader,
+        "SleepEDF": SLEEPEXGLoader,
+        "SEED-VIG": SEEDVIGEXGLoader,
+        "ISRUC-SLEEP": ISRUCEXGLoader,
+    }
+    
+    if dataset_name not in dataset_map:
+        print(f"Warning: Unknown dataset '{dataset_name}'. Using UnifiedEXGLoader as fallback.")
+        return UnifiedEXGLoader(dataset_config, tokenizer, train_config, partition,
+                               sampling_rate, is_instruct, is_val, signal_types)
+    
+    return dataset_map[dataset_name](dataset_config, tokenizer, train_config, partition,
+                                     sampling_rate, is_instruct, is_val, signal_types)
 
 
 if __name__ == "__main__":
@@ -253,13 +321,49 @@ if __name__ == "__main__":
             # Just return some dummy token IDs
             return [100, 101, 102] if text else []
     
-    # Test with a sample dataset
-    dataset_config = DatasetConfig(
-        dataset="SleepEDF",
-        train_path=r'E:\dataset\SleepEDF_new\sleep-telemetry\train',
-        val_path=r'E:\dataset\SleepEDF_new\sleep-telemetry\eval',
-        test_path=r'E:\dataset\SleepEDF_new\sleep-telemetry\test'
-    )
+    # Test with multiple datasets
+    datasets = [
+        # SleepEDF dataset
+        {
+            "name": "SleepEDF",
+            "config": DatasetConfig(
+                dataset="SleepEDF",
+                train_path=r'E:\dataset\SleepEDF_new\sleep-telemetry\train',
+                val_path=r'E:\dataset\SleepEDF_new\sleep-telemetry\eval',
+                test_path=r'E:\dataset\SleepEDF_new\sleep-telemetry\test'
+            )
+        },
+        # HMC dataset
+        {
+            "name": "HMC",
+            "config": DatasetConfig(
+                dataset="HMC",
+                train_path=r'E:\dataset\HMC_new\train',
+                val_path=r'E:\dataset\HMC_new\eval',
+                test_path=r'E:\dataset\HMC_new\test'
+            )
+        },
+        # SEED-VIG dataset
+        {
+            "name": "SEED-VIG",
+            "config": DatasetConfig(
+                dataset="SEED-VIG",
+                train_path=r'E:\dataset\SEED-VIG\train',
+                val_path=r'E:\dataset\SEED-VIG\eval',
+                test_path=r'E:\dataset\SEED-VIG\test'
+            )
+        },
+        # ISRUC-SLEEP dataset
+        {
+            "name": "ISRUC-SLEEP",
+            "config": DatasetConfig(
+                dataset="ISRUC-SLEEP",
+                train_path=r'E:\dataset\ISRUC\train',
+                val_path=r'E:\dataset\ISRUC\eval',
+                test_path=r'E:\dataset\ISRUC\test'
+            )
+        }
+    ]
     
     train_config = TrainConfig(
         context_length=256,
@@ -268,21 +372,31 @@ if __name__ == "__main__":
     
     tokenizer = MockTokenizer()
     
-    # Try to load the dataset
-    dataset = SLEEPEXGLoader(
-        dataset_config=dataset_config, 
-        tokenizer=tokenizer,
-        train_config=train_config,
-        partition="train",
-        signal_types="EEG"
-    )
-    print(f"Successfully initialized dataset with {len(dataset)} samples")
-    
-    # Try to get a single sample if dataset is not empty
-    if len(dataset) > 0:
-        sample = dataset[0]
-        print(f"Sample keys: {sample.keys()}")
-        print(f"Signal shape: {len(sample['signal'])}x{len(sample['signal'][0])}")
-        print(f"Target label: {sample['target_text']}")
-    else:
-        print("Dataset is empty. Make sure sample data exists in the specified path.")
+    # Test each dataset
+    for dataset_info in datasets:
+        try:
+            print(f"\nTesting {dataset_info['name']} dataset...")
+            # Try to load the dataset
+            dataset = create_exg_loader(
+                dataset_name=dataset_info['name'],
+                dataset_config=dataset_info['config'], 
+                tokenizer=tokenizer,
+                train_config=train_config,
+                partition="train",
+                signal_types="EOG"
+            )
+            print(f"Successfully initialized dataset with {len(dataset)} samples")
+            
+            # Try to get a single sample if dataset is not empty
+            if len(dataset) > 0:
+                try:
+                    sample = dataset[0]
+                    print(f"Sample keys: {sample.keys()}")
+                    print(f"Signal shape: {len(sample['signal'])}x{len(sample['signal'][0])}")
+                    print(f"Target label: {sample['target_text']}")
+                except Exception as e:
+                    print(f"Error accessing sample: {e}")
+            else:
+                print("Dataset is empty. Make sure sample data exists in the specified path.")
+        except Exception as e:
+            print(f"Error testing {dataset_info['name']} dataset: {e}")

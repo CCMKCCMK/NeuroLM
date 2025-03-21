@@ -144,6 +144,8 @@ def train(model, train_loader, criterion, optimizer, device):
         inputs, labels = inputs.to(device), labels.to(device)
         labels = labels.squeeze() if labels.dim() > 1 else labels
         
+        # Print input shape, max, min   
+        print(inputs.shape, inputs.max(),inputs.min())
         optimizer.zero_grad()
         
         outputs = model(inputs)
@@ -194,7 +196,7 @@ def evaluate(model, test_loader, criterion, device):
 def main():
     parser = argparse.ArgumentParser(description='Train a simple CNN on EEG datasets')
     parser.add_argument('--dataset', type=str, 
-                        choices=['hmc', 'workload', 'sleepedf', 'seedvig', 'eog'],
+                        choices=['hmc', 'workload', 'sleepedf', 'seedvig', 'eog', 'isruc'],
                         required=True, help='Dataset to use')
     parser.add_argument('--data_dir', type=str, required=True,
                         help='Path to the prepared dataset directory')
@@ -225,7 +227,8 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(args.seed)
         torch.backends.cudnn.deterministic = True
-    
+    torch.seed()
+
     # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -252,7 +255,7 @@ def main():
             'n_classes': 2,  # Binary classification (saccade vs blink)
             'class_names': ['Blink', 'Saccade']
         },
-        "ISRUC-SLEEP": {
+        "isruc": {
             'n_classes': 5,  # Sleep stages: W, N1, N2, N3, REM
             'class_names': ['W', 'N1', 'N2', 'N3', 'REM']
         }
@@ -288,8 +291,8 @@ def main():
         if not batch:
             raise ValueError("No valid samples in batch")
         return torch.utils.data.dataloader.default_collate(batch)
-    
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, 
+        
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, 
                              collate_fn=collate_fn, num_workers=0)
     eval_loader = DataLoader(eval_dataset, batch_size=args.batch_size, shuffle=False, 
                             collate_fn=collate_fn, num_workers=0)

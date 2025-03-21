@@ -1,6 +1,6 @@
 Dataset: hmc
 Channel types: ['EOG']
-Test Accuracy: 67.61%
-Test Precision: 0.6234
-Test Recall: 0.6082
-Test F1 Score: 0.5930
+Test Accuracy: 37.04%
+Test Precision: 0.0741
+Test Recall: 0.2000
+Test F1 Score: 0.1081
