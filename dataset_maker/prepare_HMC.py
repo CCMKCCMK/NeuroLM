@@ -73,7 +73,7 @@ def load_up_objects(fileList, Features, Labels, OutDir):
         ):
             sample = {
                 "X": signal,
-                "ch_names": [name.split(' ')[-1].split('-')[0] for name in chOrder_standard],
+                "ch_names": [name for name in chOrder_standard],
                 "y": label,
             }
             # print(signal.shape)
@@ -143,3 +143,5 @@ TestLabels = np.empty([0, 1])
 load_up_objects(
     test_files, TestFeatures, TestLabels, test_out_dir
 )
+
+print("Done")

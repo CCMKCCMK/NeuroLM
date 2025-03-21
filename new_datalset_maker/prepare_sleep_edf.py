@@ -19,6 +19,8 @@ drop_channels = ['EMG submental', 'Event marker', 'Temp rectal', 'Resp oro-nasal
 # For both SC (Sleep Cassette) and ST (Sleep Telemetry) files
 chOrder_standard = ['EOG horizontal', 'EEG Fpz-Cz', 'EEG Pz-Oz']
 
+fs = 200.0
+
 symbols_sleep_edf = {
     'Sleep stage W': 0,   # Wake
     'Sleep stage 1': 1,   # Stage 1
@@ -52,7 +54,6 @@ def parse_hypnogram(hypno_file):
 
 def BuildEvents(signals, times, labels, onsets):
     """Build 30-second epoch segments from continuous data based on hypnogram markers"""
-    fs = 100.0
     
     # 30-second epochs for sleep staging as per R&K manual
     epoch_len = int(fs * 30)
@@ -164,8 +165,6 @@ def readEDF(fileName):
             print(f"Trimming data to include only 30 minutes before first sleep and 30 minutes after last sleep")
             print(f"Pre-sleep start: {onsets[sleep_indices[0]]:.2f}s, Post-sleep end: {onsets[sleep_indices[-1]]:.2f}s")
             
-            fs = 100
-
             # Find first and last sleep periods
             first_sleep_idx = sleep_indices[0]
             last_sleep_idx = sleep_indices[-1]
@@ -189,13 +188,14 @@ def readEDF(fileName):
             start_sample = int(start_time/100*fs)
             end_sample = int(end_time/100*fs)
             
-            time_Rawdata = Rawdata.copy().resample(100, n_jobs=16)
+            time_Rawdata = Rawdata.copy().resample(fs, n_jobs=16)
             
             # Extract only the relevant portion of the data
             _, times = time_Rawdata[:, start_sample:end_sample]
             signals = np.zeros((len(Rawdata.ch_names), len(times)))
             
-            # Adjust onsets to match the new time reference            onsets = onsets - start_time
+            # Adjust onsets to match the new time reference            
+            onsets = onsets - start_time
             # Remove any annotations that fall outside our trimmed data
             valid_indices = np.where(onsets < (end_time - start_time))[0]
             onsets[0] = 0
@@ -219,8 +219,8 @@ def readEDF(fileName):
         # Process EEG channels (0.1-75 Hz with 50Hz notch) NO NEED HERE (SAMPLED AT 100Hz)
         eog_raw.filter(l_freq=0.3, h_freq=30.0, n_jobs=16)
 
-        eog_raw.resample(100, n_jobs=16)
-        eeg_raw.resample(100, n_jobs=16)
+        eog_raw.resample(fs, n_jobs=16)
+        eeg_raw.resample(fs, n_jobs=16)
 
         # Get processed data back into a combined dataset
         for i, ch in enumerate(Rawdata.ch_names):

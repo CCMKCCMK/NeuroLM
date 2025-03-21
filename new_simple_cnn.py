@@ -70,7 +70,7 @@ class EEGDataset(Dataset):
         # Convert to torch tensor
         X = torch.tensor(X, dtype=torch.float32)
 
-        print(X.shape)
+        # print(X.shape)
         
         # Handle different label formats
         y = sample['y']
@@ -252,6 +252,10 @@ def main():
             'n_classes': 2,  # Binary classification (saccade vs blink)
             'class_names': ['Blink', 'Saccade']
         },
+        "ISRUC-SLEEP": {
+            'n_classes': 5,  # Sleep stages: W, N1, N2, N3, REM
+            'class_names': ['W', 'N1', 'N2', 'N3', 'REM']
+        }
     }
     
     config = dataset_configs[args.dataset]
